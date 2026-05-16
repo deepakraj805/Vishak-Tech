@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vishak Tech — Sales Pipeline Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f14;
+    --bg2: #12151c;
+    --surface: #181c26;
+    --surface2: #1e2330;
+    --surface3: #242938;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.13);
+    --text: #e8eaf0;
+    --text2: #8b90a0;
+    --text3: #545868;
+    --accent: #e05c3a;
+    --blue: #4a8fd4; --blue-bg: rgba(74,143,212,0.15);
+    --green: #3db87a; --green-bg: rgba(61,184,122,0.15);
+    --amber: #e0a030; --amber-bg: rgba(224,160,48,0.15);
+    --purple: #8b6fd4; --purple-bg: rgba(139,111,212,0.15);
+    --radius: 10px; --radius-lg: 14px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+  /* LOADING */
+  #loading-screen {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; background: var(--bg); z-index: 100; transition: opacity 0.4s;
+  }
+  #loading-screen.hidden { opacity: 0; pointer-events: none; }
+  .loader-box { text-align: center; }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1.25rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-title { font-size: 16px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+  .loader-sub { font-size: 12px; color: var(--text3); }
+
+  /* ERROR */
+  #error-screen { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; background: var(--bg); z-index: 99; padding: 2rem; }
+  #error-screen.show { display: flex; }
+  .error-box { width: min(500px,90vw); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); padding: 2.5rem 2rem; text-align: center; }
+  .error-icon { font-size: 36px; margin-bottom: 1rem; }
+  .error-title { font-size: 17px; font-weight: 600; margin-bottom: 0.5rem; }
+  .error-msg { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; line-height: 1.6; }
+  .retry-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: white; border: none; border-radius: 8px; padding: 0.65rem 1.5rem; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+  .retry-btn:hover { background: #c44d2e; }
+
+  /* LAYOUT */
+  #dashboard { display: none; max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
+  #dashboard.visible { display: block; }
+
+  /* TOPBAR */
+  .topbar { display: flex; align-items: center; justify-content: space-between; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 0.75rem 1.25rem; margin-bottom: 1.25rem; gap: 1rem; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-icon { width: 34px; height: 34px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .brand-icon svg { width: 18px; height: 18px; stroke: white; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .brand-name { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; color: var(--text); }
+  .brand-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .topbar-right { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .hbtn { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border-strong); padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--text2); cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; text-decoration: none; }
+  .hbtn:hover { background: var(--surface3); color: var(--text); }
+  .hbtn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+  /* KPI */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-bottom: 1.25rem; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.2rem; position: relative; overflow: hidden; transition: border-color 0.2s; }
+  .kpi:hover { border-color: var(--border-strong); }
+  .kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:10px 10px 0 0; }
+  .kpi.k1::before{background:var(--blue)}.kpi.k2::before{background:var(--accent)}.kpi.k3::before{background:var(--green)}.kpi.k4::before{background:var(--purple)}
+  .kpi-label { font-size:11px; color:var(--text2); font-weight:500; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
+  .kpi-val { font-size:28px; font-weight:600; line-height:1; font-family:'DM Mono',monospace; }
+  .kpi-sub { font-size:11px; color:var(--text3); margin-top:5px; }
+
+  /* FILTER BAR */
+  .filter-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:0.65rem 1rem; margin-bottom:1.25rem; }
+  .filter-label { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:0.5px; margin-right:4px; white-space:nowrap; }
+  .filter-input { background:var(--surface2); border:1px solid var(--border-strong); color:var(--text); border-radius:7px; padding:0.35rem 0.75rem 0.35rem 2rem; font-size:12px; font-family:inherit; outline:none; width:175px; transition:border-color 0.15s,width 0.2s; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23545868' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:8px center; }
+  .filter-input:focus { border-color:var(--accent); width:220px; }
+  .filter-input::placeholder { color:var(--text3); }
+  .filter-select { background:var(--surface2); border:1px solid var(--border-strong); color:var(--text2); border-radius:7px; padding:0.35rem 0.65rem; font-size:12px; font-family:inherit; outline:none; cursor:pointer; transition:border-color 0.15s; }
+  .filter-select:focus { border-color:var(--accent); color:var(--text); }
+  .filter-select option { background:var(--surface2); }
+  .clear-btn { background:none; border:1px solid var(--border-strong); color:var(--text3); border-radius:7px; padding:0.35rem 0.65rem; font-size:11px; font-family:inherit; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+  .clear-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .filter-count { font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-left:auto; }
+
+  /* CARDS */
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:1.25rem; }
+  .card-title { font-size:11px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:1rem; display:flex; align-items:center; gap:8px; }
+  .card-title svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+
+  /* CARD SEARCH */
+  .card-search { display:flex; align-items:center; gap:8px; margin-bottom:0.75rem; flex-wrap:wrap; }
+  .card-search-input { flex:1; min-width:120px; background:var(--surface2); border:1px solid var(--border-strong); color:var(--text); border-radius:7px; padding:0.32rem 0.65rem 0.32rem 1.9rem; font-size:12px; font-family:inherit; outline:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23545868' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:7px center; transition:border-color 0.15s; }
+  .card-search-input:focus { border-color:var(--accent); }
+  .card-search-input::placeholder { color:var(--text3); }
+  .card-search-select { background:var(--surface2); border:1px solid var(--border-strong); color:var(--text2); border-radius:7px; padding:0.32rem 0.55rem; font-size:11px; font-family:inherit; outline:none; cursor:pointer; }
+  .card-search-select option { background:var(--surface2); }
+
+  /* PIPE BARS */
+  .pipe-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .pipe-label { font-size:12px; color:var(--text2); width:110px; flex-shrink:0; }
+  .pipe-track { flex:1; height:5px; background:var(--surface3); border-radius:3px; overflow:hidden; }
+  .pipe-fill { height:100%; border-radius:3px; transition:width 0.6s ease; }
+  .pipe-n { font-size:11px; font-weight:600; width:14px; text-align:right; font-family:'DM Mono',monospace; color:var(--text2); }
+
+  /* VISITS */
+  .visit-item { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-bottom:1px solid var(--border); }
+  .visit-item:last-child { border-bottom:none; }
+  .visit-dot { width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+  .visit-name { font-size:13px; font-weight:500; }
+  .visit-meta { font-size:11px; color:var(--text3); margin-top:1px; }
+  .visit-note { font-size:11px; color:var(--text2); margin-top:2px; }
+  .visit-badge { margin-left:auto; font-size:10px; font-weight:600; padding:2px 7px; border-radius:5px; white-space:nowrap; font-family:'DM Mono',monospace; }
+
+  /* TABLES */
+  .data-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .data-table th { text-align:left; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text3); padding:0 8px 8px 0; border-bottom:1px solid var(--border-strong); cursor:pointer; user-select:none; white-space:nowrap; }
+  .data-table th:hover { color:var(--text2); }
+  .data-table th .sort-icon { opacity:0.4; margin-left:3px; }
+  .data-table th.sorted .sort-icon { opacity:1; color:var(--accent); }
+  .data-table td { padding:8px 8px 8px 0; border-bottom:1px solid var(--border); color:var(--text2); vertical-align:middle; }
+  .data-table tr:hover td { background:var(--surface2); }
+  .data-table tr:last-child td { border-bottom:none; }
+  .data-table td.name { color:var(--text); font-weight:500; }
+  .data-table td.mono { font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); }
+
+  /* PILLS */
+  .pill { display:inline-block; font-size:10px; font-weight:600; padding:2px 8px; border-radius:5px; letter-spacing:0.2px; }
+  .pill-new{background:var(--blue-bg);color:var(--blue)}
+  .pill-follow{background:var(--amber-bg);color:var(--amber)}
+  .pill-qual{background:var(--green-bg);color:var(--green)}
+  .pill-prop{background:var(--purple-bg);color:var(--purple)}
+  .pill-won{background:var(--green-bg);color:var(--green)}
+  .pill-rel{background:var(--green-bg);color:var(--green)}
+  .pill-wait{background:var(--amber-bg);color:var(--amber)}
+  .pill-sent{background:var(--blue-bg);color:var(--blue)}
+  .pill-default{background:var(--surface3);color:var(--text2)}
+
+  .chart-wrap { position:relative; width:100%; height:165px; margin-top:1rem; }
+  .empty { color:var(--text3); font-size:12px; text-align:center; padding:1.5rem 0; }
+  .footer { margin-top:2rem; font-size:11px; color:var(--text3); text-align:center; font-family:'DM Mono',monospace; }
+  .section-gap { margin-bottom:14px; }
+  .row-count { font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:8px; display:block; }
+
+  /* NOTICE */
+  .notice { background:var(--amber-bg); border:1px solid rgba(224,160,48,0.3); border-radius:var(--radius); padding:0.75rem 1rem; font-size:12px; color:var(--amber); margin-bottom:1.25rem; display:none; align-items:center; gap:8px; }
+  .notice.show { display:flex; }
+
+  @media(max-width:700px){ .kpi-grid{grid-template-columns:1fr 1fr} .row2{grid-template-columns:1fr} }
+  @media(max-width:420px){ .kpi-grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="loader-box">
+    <div class="spinner"></div>
+    <div class="loader-title">Loading dashboard…</div>
+    <div class="loader-sub" id="load-msg">Fetching latest data from Google Sheets</div>
+  </div>
+</div>
+
+<!-- ERROR -->
+<div id="error-screen">
+  <div class="error-box">
+    <div class="error-icon">⚠️</div>
+    <div class="error-title">Could not load data</div>
+    <div class="error-msg" id="error-msg">Make sure the Google Sheet is published to the web (File → Share → Publish to web → Each sheet as CSV).</div>
+    <button class="retry-btn" onclick="loadAll()">
+      <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.54"/></svg>
+      Retry
+    </button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">Vishak Tech</div>
+        <div class="brand-sub">Sales Pipeline Dashboard</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;" id="file-info">—</div>
+    <div class="topbar-right">
+      <div class="hbtn"><div class="live-dot"></div>&nbsp;Live</div>
+      <button class="hbtn" onclick="loadAll()">
+        <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.54"/></svg>
+        Refresh
+      </button>
+      <a class="hbtn" href="https://docs.google.com/spreadsheets/d/15_QW2QSF2BqrsQC5SZFU8GjI_mOBorto/edit" target="_blank">
+        <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Open Sheet
+      </a>
+    </div>
+  </div>
+
+  <div class="notice" id="publish-notice">
+    ℹ️ Some sheets returned no data — confirm each tab is published: <strong>File → Share → Publish to web → comma-separated values</strong>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi k1"><div class="kpi-label">Total leads</div><div class="kpi-val" id="kpi-leads">—</div><div class="kpi-sub">Active leads tracked</div></div>
+    <div class="kpi k2"><div class="kpi-label">Purchase requests</div><div class="kpi-val" id="kpi-prs">—</div><div class="kpi-sub">Quotations in progress</div></div>
+    <div class="kpi k3"><div class="kpi-label">Purchase orders</div><div class="kpi-val" id="kpi-pos">—</div><div class="kpi-sub">Orders tracked</div></div>
+    <div class="kpi k4"><div class="kpi-label">Site visits</div><div class="kpi-val" id="kpi-visits">—</div><div class="kpi-sub">Field visits logged</div></div>
+  </div>
+
+  <!-- GLOBAL FILTER BAR -->
+  <div class="filter-bar">
+    <span class="filter-label">🔍 Filters</span>
+    <input class="filter-input" type="text" id="global-search" placeholder="Search all sections…" oninput="applyAllFilters()">
+    <select class="filter-select" id="filter-lead-status" onchange="applyAllFilters()">
+      <option value="">All Lead Statuses</option>
+    </select>
+    <select class="filter-select" id="filter-pr-status" onchange="applyAllFilters()">
+      <option value="">All PR Statuses</option>
+      <option value="wait">Waiting</option>
+      <option value="sent">Sent / Submitted</option>
+      <option value="receiv">Received</option>
+    </select>
+    <select class="filter-select" id="filter-po-stage" onchange="applyAllFilters()">
+      <option value="">All PO Stages</option>
+      <option value="releas">Released / Completed</option>
+      <option value="process">Processing</option>
+    </select>
+    <button class="clear-btn" onclick="clearAllFilters()">✕ Clear</button>
+    <span class="filter-count" id="filter-summary"></span>
+  </div>
+
+  <!-- PIPELINE + VISITS -->
+  <div class="row2">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Lead pipeline
+      </div>
+      <div id="pipeline-bars"></div>
+      <div class="chart-wrap"><canvas id="pipeChart" role="img" aria-label="Donut chart of lead pipeline stages"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Site visits
+      </div>
+      <div class="card-search">
+        <input class="card-search-input" type="text" id="visit-search" placeholder="Search location, person…" oninput="renderVisits()">
+      </div>
+      <div id="visits-list"></div>
+    </div>
+  </div>
+
+  <!-- PR TRACKER -->
+  <div class="card section-gap">
+    <div class="card-title">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Purchase requests tracker
+    </div>
+    <div class="card-search">
+      <input class="card-search-input" type="text" id="pr-search" placeholder="Search PR No, description, customer…" oninput="renderPRs()">
+      <select class="card-search-select" id="pr-status-filter" onchange="renderPRs()">
+        <option value="">All statuses</option>
+        <option value="wait">Waiting</option>
+        <option value="sent">Sent / Submitted</option>
+        <option value="receiv">Received</option>
+      </select>
+    </div>
+    <table class="data-table">
+      <thead><tr>
+        <th onclick="sortTable('pr','Internal PR No',this)">PR No <span class="sort-icon">↕</span></th>
+        <th onclick="sortTable('pr','PR Description',this)">Description <span class="sort-icon">↕</span></th>
+        <th onclick="sortTable('pr','Customer Name',this)">Customer <span class="sort-icon">↕</span></th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody id="pr-tbody"></tbody>
+    </table>
+    <span class="row-count" id="pr-count"></span>
+  </div>
+
+  <!-- PO TRACKER -->
+  <div class="card section-gap">
+    <div class="card-title">
+      <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      Purchase orders
+    </div>
+    <div class="card-search">
+      <input class="card-search-input" type="text" id="po-search" placeholder="Search customer, PR ref, description…" oninput="renderPOs()">
+      <select class="card-search-select" id="po-stage-filter" onchange="renderPOs()">
+        <option value="">All stages</option>
+        <option value="releas">Released / Completed</option>
+        <option value="process">Processing</option>
+      </select>
+    </div>
+    <table class="data-table">
+      <thead><tr>
+        <th onclick="sortTable('po','Date',this)">Date <span class="sort-icon">↕</span></th>
+        <th onclick="sortTable('po','Customer Name',this)">Customer <span class="sort-icon">↕</span></th>
+        <th>PR ref</th>
+        <th onclick="sortTable('po','Short Description',this)">Description <span class="sort-icon">↕</span></th>
+        <th>Stage</th>
+      </tr></thead>
+      <tbody id="po-tbody"></tbody>
+    </table>
+    <span class="row-count" id="po-count"></span>
+  </div>
+
+  <div class="footer" id="footer-ts">—</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════════════
+const SHEET_ID = '15_QW2QSF2BqrsQC5SZFU8GjI_mOBorto';
+const TABS = { travel:'Travel', lead:'LEAD', pr:'PR', po:'PO' };
+// ══════════════════════════════════════════════════════
+
+let chartInstance = null;
+let _data = { aLeads:[], aPRs:[], aPOs:[], aVisits:[] };
+let _sort = { pr:{col:null,dir:1}, po:{col:null,dir:1} };
+
+function csvUrl(tabName) {
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+}
+
+async function fetchTab(tabName) {
+  const resp = await fetch(csvUrl(tabName));
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} for tab "${tabName}"`);
+  return parseCSV(await resp.text());
+}
+
+function parseCSV(text) {
+  const lines=[]; let cur='', inQ=false, row=[];
+  for (let i=0;i<text.length;i++) {
+    const c=text[i];
+    if (c==='"') { if(inQ&&text[i+1]==='"'){cur+='"';i++;}else inQ=!inQ; }
+    else if (c===','&&!inQ) { row.push(cur.trim());cur=''; }
+    else if ((c==='\n'||c==='\r')&&!inQ) { if(c==='\r'&&text[i+1]==='\n')i++; row.push(cur.trim());cur='';lines.push(row);row=[]; }
+    else cur+=c;
+  }
+  if (cur||row.length){row.push(cur.trim());lines.push(row);}
+  if (lines.length<2) return [];
+  const headers=lines[0].map(h=>h.replace(/^"|"$/g,'').trim());
+  return lines.slice(1).filter(r=>r.some(c=>c!=='')).map(r=>{
+    const obj={};
+    headers.forEach((h,i)=>{obj[h]=(r[i]||'').replace(/^"|"$/g,'').trim()||null;});
+    return obj;
+  });
+}
+
+async function loadAll() {
+  show('loading-screen','Fetching latest data from Google Sheets…');
+  hide('error-screen'); hide('dashboard');
+  try {
+    const [travels,leads,prs,pos] = await Promise.all([
+      fetchTab(TABS.travel), fetchTab(TABS.lead), fetchTab(TABS.pr), fetchTab(TABS.po)
+    ]);
+    renderDashboard({travels,leads,prs,pos});
+  } catch(e) {
+    console.error(e);
+    hide('loading-screen');
+    document.getElementById('error-msg').textContent =
+      `${e.message}. Make sure the sheet is published: File → Share → Publish to web → Each tab as CSV.`;
+    document.getElementById('error-screen').classList.add('show');
+  }
+}
+
+// ── COLOUR HELPERS ──
+const STATUS_COLORS = {
+  'new':           {fill:'#4a8fd4',bar:'#4a8fd4',pill:'pill-new'},
+  'follow up':     {fill:'#e0a030',bar:'#e0a030',pill:'pill-follow'},
+  'qualified':     {fill:'#3db87a',bar:'#3db87a',pill:'pill-qual'},
+  'proposal sent': {fill:'#8b6fd4',bar:'#8b6fd4',pill:'pill-prop'},
+  'closed won':    {fill:'#3db87a',bar:'#3db87a',pill:'pill-won'},
+};
+function si(s){return STATUS_COLORS[String(s||'').toLowerCase().trim()]||{fill:'#545868',bar:'#545868',pill:'pill-default'};}
+function pillPR(s){const v=String(s||'').toLowerCase();if(v.includes('wait'))return'pill-wait';if(v.includes('sent')||v.includes('submit'))return'pill-sent';if(v.includes('receiv'))return'pill-qual';return'pill-default';}
+function pillPO(s){const v=String(s||'').toLowerCase();if(v.includes('releas')||v.includes('complet'))return'pill-rel';if(v.includes('process'))return'pill-follow';return'pill-default';}
+function fmtDate(v){if(!v)return'—';const d=new Date(v);return isNaN(d)?String(v):d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});}
+function trunc(s,n){const t=String(s||'');return t.length>n?t.slice(0,n)+'…':t;}
+function matches(r,q){if(!q)return true;q=q.toLowerCase();return Object.values(r).some(v=>v&&String(v).toLowerCase().includes(q));}
+
+function renderDashboard({travels,leads,prs,pos}) {
+  _data.aLeads  = leads.filter(r=>r['Lead No']);
+  _data.aPRs    = prs.filter(r=>r['Internal PR No']);
+  _data.aPOs    = pos.filter(r=>r['Customer Name']&&r['Production Stage']);
+  _data.aVisits = travels.filter(r=>r['Lead No']);
+
+  const anyEmpty=[_data.aLeads,_data.aPRs,_data.aPOs,_data.aVisits].some(a=>a.length===0);
+  document.getElementById('publish-notice').classList.toggle('show',anyEmpty);
+
+  set('kpi-leads',_data.aLeads.length);
+  set('kpi-prs',_data.aPRs.length);
+  set('kpi-pos',_data.aPOs.length);
+  set('kpi-visits',_data.aVisits.length);
+
+  // Populate lead status dropdown dynamically
+  const statuses=[...new Set(_data.aLeads.map(r=>String(r['Lead Status']||'Unknown').trim()))].sort();
+  const sel=document.getElementById('filter-lead-status');
+  sel.innerHTML='<option value="">All Lead Statuses</option>'+statuses.map(s=>`<option value="${s}">${s}</option>`).join('');
+
+  // Pipeline bars + chart
+  const sc={};
+  _data.aLeads.forEach(r=>{const s=String(r['Lead Status']||'Unknown').trim();sc[s]=(sc[s]||0)+1;});
+  const maxV=Math.max(...Object.values(sc),1);
+  set('pipeline-bars',Object.entries(sc).map(([s,n])=>{
+    const c=si(s);const pct=Math.round(n/maxV*100);
+    return `<div class="pipe-row"><span class="pipe-label">${s}</span><div class="pipe-track"><div class="pipe-fill" style="width:${pct}%;background:${c.bar}"></div></div><span class="pipe-n">${n}</span></div>`;
+  }).join('')||'<div class="empty">No lead data</div>');
+
+  if(chartInstance){chartInstance.destroy();chartInstance=null;}
+  if(Object.keys(sc).length){
+    chartInstance=new Chart(document.getElementById('pipeChart'),{
+      type:'doughnut',
+      data:{labels:Object.keys(sc),datasets:[{data:Object.values(sc),backgroundColor:Object.keys(sc).map(l=>si(l).fill),borderWidth:2,borderColor:'#181c26'}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw}`}}}}
+    });
+  }
+
+  renderVisits(); renderPRs(); renderPOs();
+
+  const now=new Date().toLocaleString();
+  set('file-info',`Google Sheets · refreshed ${now}`);
+  set('footer-ts',`Live data · Last refreshed: ${now} · Auto-refresh every 5 min`);
+
+  hide('loading-screen');
+  const dash=document.getElementById('dashboard');
+  dash.style.display='block'; dash.classList.add('visible');
+  clearTimeout(window._refreshTimer);
+  window._refreshTimer=setTimeout(loadAll,5*60*1000);
+}
+
+function renderVisits() {
+  const q=(document.getElementById('visit-search')||{}).value||'';
+  const gq=(document.getElementById('global-search')||{}).value||'';
+  const vc=['#4a8fd4','#e0a030','#3db87a','#8b6fd4','#e05c3a','#545868'];
+  const filtered=_data.aVisits.filter(r=>matches(r,q)&&matches(r,gq));
+  set('visits-list',filtered.slice(0,6).map((r,i)=>{
+    const c=vc[i%vc.length];
+    return `<div class="visit-item">
+      <div class="visit-dot" style="background:${c}"></div>
+      <div style="flex:1;min-width:0">
+        <div class="visit-name">${r['Plant Name Location']||'—'}</div>
+        <div class="visit-meta">${[r['Meeting Person and Designation'],fmtDate(r['Schedule Date'])].filter(Boolean).join(' · ')}</div>
+        ${r['VISIT Discription']?`<div class="visit-note">${trunc(r['VISIT Discription'],80)}</div>`:''}
+      </div>
+      <span class="visit-badge" style="background:${c}28;color:${c}">${r['Lead No']||''}</span>
+    </div>`;
+  }).join('')||'<div class="empty">No visits match</div>');
+}
+
+function renderPRs() {
+  const q=(document.getElementById('pr-search')||{}).value||'';
+  const gq=(document.getElementById('global-search')||{}).value||'';
+  const psf=(document.getElementById('pr-status-filter')||{}).value||'';
+  const gps=(document.getElementById('filter-pr-status')||{}).value||'';
+  const activeFilter=psf||gps;
+
+  let rows=_data.aPRs.filter(r=>{
+    if(!matches(r,q))return false;
+    if(!matches(r,gq))return false;
+    if(activeFilter){const quot=r['Quotation Status']||(r['Remark 3']?'Quotation sent':'In progress');if(!String(quot).toLowerCase().includes(activeFilter))return false;}
+    return true;
+  });
+  const {col,dir}=_sort.pr;
+  if(col) rows=[...rows].sort((a,b)=>String(a[col]||'').localeCompare(String(b[col]||''))*dir);
+
+  set('pr-tbody',rows.map(r=>{
+    const quot=r['Quotation Status']||(r['Remark 3']?'Quotation sent':'In progress');
+    return `<tr><td class="mono">${r['Internal PR No']||'—'}</td><td class="name">${trunc(r['PR Description']||'—',40)}</td><td>${trunc(r['Customer Name']||'—',35)}</td><td><span class="pill ${pillPR(quot)}">${quot}</span></td></tr>`;
+  }).join('')||'<tr><td colspan="4" class="empty">No PR data matches</td></tr>');
+  const el=document.getElementById('pr-count');
+  if(el) el.textContent=rows.length!==_data.aPRs.length?`Showing ${rows.length} of ${_data.aPRs.length} records`:'';
+}
+
+function renderPOs() {
+  const q=(document.getElementById('po-search')||{}).value||'';
+  const gq=(document.getElementById('global-search')||{}).value||'';
+  const psf=(document.getElementById('po-stage-filter')||{}).value||'';
+  const gps=(document.getElementById('filter-po-stage')||{}).value||'';
+  const activeFilter=psf||gps;
+
+  let rows=_data.aPOs.filter(r=>{
+    if(!matches(r,q))return false;
+    if(!matches(r,gq))return false;
+    if(activeFilter&&!String(r['Production Stage']||'').toLowerCase().includes(activeFilter))return false;
+    return true;
+  });
+  const {col,dir}=_sort.po;
+  if(col) rows=[...rows].sort((a,b)=>String(a[col]||'').localeCompare(String(b[col]||''))*dir);
+
+  set('po-tbody',rows.map(r=>`<tr>
+    <td class="mono">${fmtDate(r['Date'])}</td>
+    <td class="name">${trunc(r['Customer Name']||'—',28)}</td>
+    <td class="mono">${r['Internal PR']||'—'}</td>
+    <td>${trunc(r['Short Description']||'—',35)}</td>
+    <td><span class="pill ${pillPO(r['Production Stage'])}">${r['Production Stage']||'—'}</span></td>
+  </tr>`).join('')||'<tr><td colspan="5" class="empty">No PO data matches</td></tr>');
+  const el=document.getElementById('po-count');
+  if(el) el.textContent=rows.length!==_data.aPOs.length?`Showing ${rows.length} of ${_data.aPOs.length} records`:'';
+}
+
+function applyAllFilters() {
+  renderVisits(); renderPRs(); renderPOs();
+  const active=[
+    document.getElementById('global-search').value,
+    document.getElementById('filter-lead-status').value,
+    document.getElementById('filter-pr-status').value,
+    document.getElementById('filter-po-stage').value
+  ].filter(Boolean).length;
+  const el=document.getElementById('filter-summary');
+  if(el) el.textContent=active?`${active} filter${active>1?'s':''} active`:'';
+}
+
+function clearAllFilters() {
+  ['global-search','filter-lead-status','filter-pr-status','filter-po-stage',
+   'pr-search','pr-status-filter','po-search','po-stage-filter','visit-search'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  applyAllFilters();
+}
+
+function sortTable(table,col,th) {
+  const s=_sort[table];
+  if(s.col===col) s.dir*=-1; else{s.col=col;s.dir=1;}
+  document.querySelectorAll('.data-table th.sorted').forEach(t=>t.classList.remove('sorted'));
+  th.classList.add('sorted');
+  if(table==='pr') renderPRs(); else renderPOs();
+}
+
+function set(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
+function show(id,msg){const el=document.getElementById(id);if(el){el.classList.remove('hidden');el.style.display='';if(msg){const m=document.getElementById('load-msg');if(m)m.textContent=msg;}}}
+function hide(id){const el=document.getElementById(id);if(el){el.classList.add('hidden');el.style.display='none';}}
+
+loadAll();
+</script>
+</body>
+</html>
