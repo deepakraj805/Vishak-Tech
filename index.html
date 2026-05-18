@@ -428,9 +428,27 @@ function renderDashboard({travels,leads,prs,pos}) {
   const sel=document.getElementById('filter-lead-status');
   sel.innerHTML='<option value="">All Lead Statuses</option>'+statuses.map(s=>`<option value="${s}">${s}</option>`).join('');
 
+  renderPipeline();
+  renderVisits(); renderPRs(); renderPOs();
+
+  const now=new Date().toLocaleString();
+  set('file-info',`Google Sheets · refreshed ${now}`);
+  set('footer-ts',`Live data · Last refreshed: ${now} · Auto-refresh every 5 min`);
+
+  hide('loading-screen');
+  const dash=document.getElementById('dashboard');
+  dash.style.display='block'; dash.classList.add('visible');
+  clearTimeout(window._refreshTimer);
+  window._refreshTimer=setTimeout(loadAll,5*60*1000);
+}
+
+function renderPipeline() {
+  const gls=(document.getElementById('filter-lead-status')||{}).value||'';
+  const filteredLeads=gls?_data.aLeads.filter(r=>String(r['Lead Status']||'Unknown').trim()===gls):_data.aLeads;
+
   // Pipeline bars + chart
   const sc={};
-  _data.aLeads.forEach(r=>{const s=String(r['Lead Status']||'Unknown').trim();sc[s]=(sc[s]||0)+1;});
+  filteredLeads.forEach(r=>{const s=String(r['Lead Status']||'Unknown').trim();sc[s]=(sc[s]||0)+1;});
   const maxV=Math.max(...Object.values(sc),1);
   const PIPE_PALETTE=['#eab308','#60a5fa','#34d399','#ef4444','#f97316','#06d6a0','#e879f9','#f43f5e','#38bdf8','#a3e635','#fb923c','#818cf8'];
   const scEntries=Object.entries(sc);
@@ -448,25 +466,23 @@ function renderDashboard({travels,leads,prs,pos}) {
       options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:true,position:'bottom',labels:{color:'#c0c5d8',font:{size:11,family:'DM Sans'},padding:8,boxWidth:10,boxHeight:10}},tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw}`}}}}
     });
   }
-
-  renderVisits(); renderPRs(); renderPOs();
-
-  const now=new Date().toLocaleString();
-  set('file-info',`Google Sheets · refreshed ${now}`);
-  set('footer-ts',`Live data · Last refreshed: ${now} · Auto-refresh every 5 min`);
-
-  hide('loading-screen');
-  const dash=document.getElementById('dashboard');
-  dash.style.display='block'; dash.classList.add('visible');
-  clearTimeout(window._refreshTimer);
-  window._refreshTimer=setTimeout(loadAll,5*60*1000);
-}
+} // end renderPipeline
 
 function renderVisits() {
   const q=(document.getElementById('visit-search')||{}).value||'';
   const gq=(document.getElementById('global-search')||{}).value||'';
+  const gls=(document.getElementById('filter-lead-status')||{}).value||'';
   const vc=['#4a8fd4','#e0a030','#3db87a','#8b6fd4','#e05c3a','#545868'];
-  const filtered=_data.aVisits.filter(r=>matches(r,q)&&matches(r,gq));
+  const filtered=_data.aVisits.filter(r=>{
+    if(!matches(r,q))return false;
+    if(!matches(r,gq))return false;
+    if(gls){
+      // Match visit's lead against lead status — join on Lead No
+      const lead=_data.aLeads.find(l=>l['Lead No']===r['Lead No']);
+      if(!lead||String(lead['Lead Status']||'Unknown').trim()!==gls)return false;
+    }
+    return true;
+  });
   set('visits-list',filtered.slice(0,6).map((r,i)=>{
     const c=vc[i%vc.length];
     return `<div class="visit-item">
@@ -486,12 +502,13 @@ function renderPRs() {
   const gq=(document.getElementById('global-search')||{}).value||'';
   const psf=(document.getElementById('pr-status-filter')||{}).value||'';
   const gps=(document.getElementById('filter-pr-status')||{}).value||'';
-  const activeFilter=psf||gps;
+  // Both filters are ANDed: if both set they must both match; if one set it must match
+  const activeFilter=gps||psf;
 
   let rows=_data.aPRs.filter(r=>{
     if(!matches(r,q))return false;
     if(!matches(r,gq))return false;
-    if(activeFilter){const quot=r['Quotation Status']||(r['Remark 3']?'Submitted':'Not Submitted');if(!String(quot).toLowerCase().includes(activeFilter))return false;}
+    if(activeFilter){const quot=r['Quotation Status']||(r['Remark 3']?'submitted':'not submitted');if(String(quot).toLowerCase().trim()!==activeFilter)return false;}
     return true;
   });
   const {col,dir}=_sort.pr;
@@ -536,7 +553,15 @@ function renderPOs() {
 }
 
 function applyAllFilters() {
-  renderVisits(); renderPRs(); renderPOs();
+  // Sync card filters to global (global takes precedence; card filter is a local override)
+  const gps=document.getElementById('filter-pr-status');
+  const psf=document.getElementById('pr-status-filter');
+  if(gps&&psf&&gps.value&&!psf.value) psf.value=gps.value;
+  const gpo=document.getElementById('filter-po-stage');
+  const pof=document.getElementById('po-stage-filter');
+  if(gpo&&pof&&gpo.value&&!pof.value) pof.value=gpo.value;
+
+  renderVisits(); renderPRs(); renderPOs(); renderPipeline();
   const active=[
     document.getElementById('global-search').value,
     document.getElementById('filter-lead-status').value,
