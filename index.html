@@ -515,7 +515,10 @@ function renderPOs() {
   let rows=_data.aPOs.filter(r=>{
     if(!matches(r,q))return false;
     if(!matches(r,gq))return false;
-    if(activeFilter){const stage=String(r['Production Stage']||'').toLowerCase().trim();const exact=(stage===activeFilter);const partial=activeFilter.includes('%')&&stage.includes(activeFilter.replace(' completed','').replace(' over','').trim());if(!exact&&!partial)return false;}
+    if(activeFilter){
+      const stage=String(r['Production Stage']||'').toLowerCase().trim();
+      if(stage!==activeFilter) return false;
+    }
     return true;
   });
   const {col,dir}=_sort.po;
