@@ -147,6 +147,11 @@
   .pill-rel{background:var(--green-bg);color:var(--green)}
   .pill-wait{background:var(--amber-bg);color:var(--amber)}
   .pill-sent{background:var(--blue-bg);color:var(--blue)}
+  .pill-notsent{background:rgba(224,92,58,0.15);color:var(--accent)}
+  .pill-process{background:var(--amber-bg);color:var(--amber)}
+  .pill-complete{background:var(--green-bg);color:var(--green)}
+  .pill-partial{background:var(--purple-bg);color:var(--purple)}
+  .pill-yts{background:rgba(139,111,212,0.2);color:#a88fe8}
   .pill-default{background:var(--surface3);color:var(--text2)}
 
   .chart-wrap { position:relative; width:100%; height:165px; margin-top:1rem; }
@@ -233,14 +238,17 @@
     </select>
     <select class="filter-select" id="filter-pr-status" onchange="applyAllFilters()">
       <option value="">All PR Statuses</option>
-      <option value="wait">Waiting</option>
-      <option value="sent">Sent / Submitted</option>
-      <option value="receiv">Received</option>
+      <option value="submitted">Submitted</option>
+      <option value="not submitted">Not Submitted</option>
     </select>
     <select class="filter-select" id="filter-po-stage" onchange="applyAllFilters()">
       <option value="">All PO Stages</option>
-      <option value="releas">Released / Completed</option>
-      <option value="process">Processing</option>
+      <option value="processing">Processing</option>
+      <option value="completed">Completed</option>
+      <option value="25% completed">25% Completed</option>
+      <option value="50% completed">50% Completed</option>
+      <option value="75%completed">75% Completed</option>
+      <option value="yts">YTS</option>
     </select>
     <button class="clear-btn" onclick="clearAllFilters()">✕ Clear</button>
     <span class="filter-count" id="filter-summary"></span>
@@ -278,9 +286,8 @@
       <input class="card-search-input" type="text" id="pr-search" placeholder="Search PR No, description, customer…" oninput="renderPRs()">
       <select class="card-search-select" id="pr-status-filter" onchange="renderPRs()">
         <option value="">All statuses</option>
-        <option value="wait">Waiting</option>
-        <option value="sent">Sent / Submitted</option>
-        <option value="receiv">Received</option>
+        <option value="submitted">Submitted</option>
+        <option value="not submitted">Not Submitted</option>
       </select>
     </div>
     <table class="data-table">
@@ -305,8 +312,12 @@
       <input class="card-search-input" type="text" id="po-search" placeholder="Search customer, PR ref, description…" oninput="renderPOs()">
       <select class="card-search-select" id="po-stage-filter" onchange="renderPOs()">
         <option value="">All stages</option>
-        <option value="releas">Released / Completed</option>
-        <option value="process">Processing</option>
+        <option value="processing">Processing</option>
+        <option value="completed">Completed</option>
+        <option value="25% completed">25% Completed</option>
+        <option value="50% completed">50% Completed</option>
+        <option value="75%completed">75% Completed</option>
+        <option value="yts">YTS</option>
       </select>
     </div>
     <table class="data-table">
@@ -392,8 +403,8 @@ const STATUS_COLORS = {
   'closed won':    {fill:'#3db87a',bar:'#3db87a',pill:'pill-won'},
 };
 function si(s){return STATUS_COLORS[String(s||'').toLowerCase().trim()]||{fill:'#545868',bar:'#545868',pill:'pill-default'};}
-function pillPR(s){const v=String(s||'').toLowerCase();if(v.includes('wait'))return'pill-wait';if(v.includes('sent')||v.includes('submit'))return'pill-sent';if(v.includes('receiv'))return'pill-qual';return'pill-default';}
-function pillPO(s){const v=String(s||'').toLowerCase();if(v.includes('releas')||v.includes('complet'))return'pill-rel';if(v.includes('process'))return'pill-follow';return'pill-default';}
+function pillPR(s){const v=String(s||'').toLowerCase().trim();if(v==='submitted')return'pill-sent';if(v==='not submitted')return'pill-notsent';return'pill-default';}
+function pillPO(s){const v=String(s||'').toLowerCase().trim();if(v==='completed')return'pill-complete';if(v==='processing')return'pill-process';if(v.includes('25%'))return'pill-partial';if(v.includes('50%'))return'pill-partial';if(v.includes('75%'))return'pill-partial';if(v==='yts')return'pill-yts';return'pill-default';}
 function fmtDate(v){if(!v)return'—';const d=new Date(v);return isNaN(d)?String(v):d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});}
 function trunc(s,n){const t=String(s||'');return t.length>n?t.slice(0,n)+'…':t;}
 function matches(r,q){if(!q)return true;q=q.toLowerCase();return Object.values(r).some(v=>v&&String(v).toLowerCase().includes(q));}
@@ -477,14 +488,14 @@ function renderPRs() {
   let rows=_data.aPRs.filter(r=>{
     if(!matches(r,q))return false;
     if(!matches(r,gq))return false;
-    if(activeFilter){const quot=r['Quotation Status']||(r['Remark 3']?'Quotation sent':'In progress');if(!String(quot).toLowerCase().includes(activeFilter))return false;}
+    if(activeFilter){const quot=r['Quotation Status']||(r['Remark 3']?'Submitted':'Not Submitted');if(!String(quot).toLowerCase().includes(activeFilter))return false;}
     return true;
   });
   const {col,dir}=_sort.pr;
   if(col) rows=[...rows].sort((a,b)=>String(a[col]||'').localeCompare(String(b[col]||''))*dir);
 
   set('pr-tbody',rows.map(r=>{
-    const quot=r['Quotation Status']||(r['Remark 3']?'Quotation sent':'In progress');
+    const quot=r['Quotation Status']||(r['Remark 3']?'Submitted':'Not Submitted');
     return `<tr><td class="mono">${r['Internal PR No']||'—'}</td><td class="name">${trunc(r['PR Description']||'—',40)}</td><td>${trunc(r['Customer Name']||'—',35)}</td><td><span class="pill ${pillPR(quot)}">${quot}</span></td></tr>`;
   }).join('')||'<tr><td colspan="4" class="empty">No PR data matches</td></tr>');
   const el=document.getElementById('pr-count');
