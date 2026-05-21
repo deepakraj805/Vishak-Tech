@@ -533,6 +533,7 @@
       <option value="COMPLETED">Completed</option>
       <option value="25% COMPLETED">25% Completed</option>
       <option value="50% COMPLETED">50% Completed</option>
+      <option value="75% COMPLETED">75% Completed</option>
       <option value="75% OVER">75% Over</option>
       <option value="YTS">Yet to Start (YTS)</option>
     </select>
@@ -602,6 +603,7 @@
         <option value="COMPLETED">Completed</option>
         <option value="25% COMPLETED">25% Completed</option>
         <option value="50% COMPLETED">50% Completed</option>
+        <option value="75% COMPLETED">75% Completed</option>
         <option value="75% OVER">75% Over</option>
         <option value="YTS">Yet to Start (YTS)</option>
       </select>
@@ -869,10 +871,8 @@ function renderPOs() {
     if(!matches(r,q))return false;
     if(!matches(r,gq))return false;
     if(activeFilter){
-      const stage=String(r['Production Stage']||'').trim().toLowerCase();
-      const af=activeFilter.toLowerCase();
-      const match=stage===af||(af==='yts'&&(stage==='yet to start'||stage==='yts'));
-      if(!match) return false;
+      const stage=String(r['Production Stage']||'').trim().toUpperCase();
+      if(stage!==activeFilter.toUpperCase()) return false;
     }
     return true;
   });
@@ -884,7 +884,7 @@ function renderPOs() {
     <td class="name">${trunc(r['Customer Name']||'—',28)}</td>
     <td class="mono">${r['Internal PR']||'—'}</td>
     <td>${trunc(r['Short Description']||'—',35)}</td>
-    <td><span class="pill ${pillPO(r['Production Stage'])}">${r['Production Stage']==='YTS'?'Yet to Start':r['Production Stage']||'—'}</span></td>
+    <td><span class="pill ${pillPO(r['Production Stage'])}">${(()=>{const s=String(r['Production Stage']||'').trim();return s==='YTS'?'Yet to Start':s==='75% OVER'?'75% Over':s==='75% COMPLETED'?'75% Completed':s==='50% COMPLETED'?'50% Completed':s==='25% COMPLETED'?'25% Completed':s||'—'})()}</span></td>
   </tr>`).join('')||'<tr><td colspan="5" class="empty">No PO data matches</td></tr>');
   const el=document.getElementById('po-count');
   if(el) el.textContent=rows.length!==_data.aPOs.length?`Showing ${rows.length} of ${_data.aPOs.length} records`:'';
