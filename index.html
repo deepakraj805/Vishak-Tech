@@ -711,7 +711,7 @@ async function loadAll() {
 }
 
 // ── COLOUR HELPERS ──
-const STATUS_COLORS = {'new':{fill:'#4a8fd4',bar:'#4a8fd4',pill:'pill-new'},'follow up':{fill:'#f59e0b',bar:'#f59e0b',pill:'pill-follow'},'qualified':{fill:'#10b981',bar:'#10b981',pill:'pill-qual'},'proposal sent':{fill:'#a78bfa',bar:'#a78bfa',pill:'pill-prop'},'closed won':{fill:'#06d6a0',bar:'#06d6a0',pill:'pill-won'},'closed lost':{fill:'#ef4444',bar:'#ef4444',pill:'pill-notsent'},'negotiation':{fill:'#f97316',bar:'#f97316',pill:'pill-follow'},'contacted':{fill:'#38bdf8',bar:'#38bdf8',pill:'pill-new'},'pr received':{fill:'#34d399',bar:'#34d399',pill:'pill-qual'},'pr processed':{fill:'#60a5fa',bar:'#60a5fa',pill:'pill-new'},'accepted':{fill:'#10b981',bar:'#10b981',pill:'pill-qual'},'rejected':{fill:'#f43f5e',bar:'#f43f5e',pill:'pill-notsent'}};
+const STATUS_COLORS = {'new':{fill:'#4a8fd4',bar:'#4a8fd4',pill:'pill-new'},'follow up':{fill:'#f59e0b',bar:'#f59e0b',pill:'pill-follow'},'qualified':{fill:'#10b981',bar:'#10b981',pill:'pill-qual'},'proposal sent':{fill:'#a78bfa',bar:'#a78bfa',pill:'pill-prop'},'closed won':{fill:'#06d6a0',bar:'#06d6a0',pill:'pill-won'},'closed lost':{fill:'#ef4444',bar:'#ef4444',pill:'pill-notsent'},'negotiation':{fill:'#f97316',bar:'#f97316',pill:'pill-follow'},'contacted':{fill:'#38bdf8',bar:'#38bdf8',pill:'pill-new'},'pr received':{fill:'#a78bfa',bar:'#a78bfa',pill:'pill-prop'},'pr processed':{fill:'#60a5fa',bar:'#60a5fa',pill:'pill-new'},'accepted':{fill:'#10b981',bar:'#10b981',pill:'pill-qual'},'rejected':{fill:'#f43f5e',bar:'#f43f5e',pill:'pill-notsent'}};
 const _dynColors=['#4a8fd4','#f59e0b','#10b981','#a78bfa','#f97316','#38bdf8','#e879f9','#06d6a0','#fb923c','#34d399','#818cf8','#f43f5e'];
 const _dynMap={};let _dynIdx=0;
 function si(s){const k=String(s||'').toLowerCase().trim();if(STATUS_COLORS[k])return STATUS_COLORS[k];if(!_dynMap[k]){_dynMap[k]=_dynColors[_dynIdx%_dynColors.length];_dynIdx++;}const c=_dynMap[k];return{fill:c,bar:c,pill:'pill-default'};}
@@ -748,7 +748,7 @@ function renderDashboard({travels,leads,prs,pos}) {
     'negotiation':'#f97316',
     'qualified':'#22c55e',
     'proposal sent':'#a78bfa',
-    'pr received':'#06b6d4',
+    'pr received':'#a78bfa',
     'pr processed':'#0ea5e9',
     'accepted':'#10b981',
     'closed won':'#16a34a',
