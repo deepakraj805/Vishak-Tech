@@ -869,8 +869,10 @@ function renderPOs() {
     if(!matches(r,q))return false;
     if(!matches(r,gq))return false;
     if(activeFilter){
-      const stage=String(r['Production Stage']||'').trim();
-      if(stage!==activeFilter) return false;
+      const stage=String(r['Production Stage']||'').trim().toLowerCase();
+      const af=activeFilter.toLowerCase();
+      const match=stage===af||(af==='yts'&&(stage==='yet to start'||stage==='yts'));
+      if(!match) return false;
     }
     return true;
   });
