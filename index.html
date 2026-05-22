@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vishak Tech — Sales Pipeline Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=DM+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -674,7 +672,7 @@
         Lead pipeline
       </div>
       <div id="pipeline-bars"></div>
-      <div class="chart-wrap"><canvas id="pipeChart" role="img" aria-label="Donut chart of lead pipeline stages" style="max-width:170px;"></canvas></div>
+      <div class="chart-wrap"><div id="pipeChart" style="max-width:170px;"></div></div>
     </div>
     <div class="card">
       <div class="card-title">
@@ -786,7 +784,6 @@
 const TABS = { travel:'Travel', lead:'LEAD', pr:'PR', po:'PO' };
 // ══════════════════════════════════════════════════════
 
-let chartInstance = null;
 let _data = { aLeads:[], aPRs:[], aPOs:[], aVisits:[] };
 let _sort = { pr:{col:null,dir:1}, po:{col:null,dir:1} };
 
@@ -952,26 +949,34 @@ function renderPipeline() {
   const gls=(document.getElementById('filter-lead-status')||{}).value||'';
   const filteredLeads=gls?_data.aLeads.filter(r=>String(r['Lead Status']||'Unknown').trim()===gls):_data.aLeads;
 
-  // Pipeline bars + chart
   const sc={};
   filteredLeads.forEach(r=>{const s=String(r['Lead Status']||'Unknown').trim();sc[s]=(sc[s]||0)+1;});
   const maxV=Math.max(...Object.values(sc),1);
   const scEntries=Object.entries(sc);
   const colorOf=s=>(_data.statusColorMap&&_data.statusColorMap[s])||'#64748b';
+
   set('pipeline-bars',scEntries.map(([s,n])=>{
     const col=colorOf(s);
     const pct=Math.round(n/maxV*100);
     return `<div class="pipe-row"><div class="pipe-dot" style="background:${col}"></div><span class="pipe-label" style="color:${col}">${s}</span><div class="pipe-track"><div class="pipe-fill" style="width:${pct}%;background:linear-gradient(90deg,${col}99,${col})"></div></div><span class="pipe-n" style="color:${col}">${n}</span></div>`;
   }).join('')||'<div class="empty">No lead data</div>');
 
-  if(chartInstance){chartInstance.destroy();chartInstance=null;}
-  if(scEntries.length){
-    chartInstance=new Chart(document.getElementById('pipeChart'),{
-      type:'doughnut',
-      data:{labels:scEntries.map(([s])=>s),datasets:[{data:scEntries.map(([,n])=>n),backgroundColor:scEntries.map(([s])=>colorOf(s)),borderWidth:2,borderColor:'#141f30'}]},
-      options:{responsive:true,maintainAspectRatio:true,cutout:'65%',plugins:{legend:{display:true,position:'bottom',align:'center',labels:{color:'#8baad4',font:{size:11,family:'DM Sans'},padding:10,boxWidth:10,boxHeight:10}},tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw}`}}}}
-    });
-  }
+  // SVG donut — no Chart.js needed
+  const total=scEntries.reduce((a,[,n])=>a+n,0);
+  const R=60,cx=80,cy=80,stroke=22;
+  const circ=2*Math.PI*R;
+  let offset=0;
+  const slices=scEntries.map(([s,n])=>{
+    const col=colorOf(s);
+    const dash=circ*(n/total);
+    const slice=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${col}" stroke-width="${stroke}" stroke-dasharray="${dash.toFixed(2)} ${(circ-dash).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    offset+=dash;
+    return slice;
+  }).join('');
+  const legend=scEntries.map(([s,n])=>`<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:#8baad4"><span style="width:8px;height:8px;border-radius:50%;background:${colorOf(s)};flex-shrink:0;display:inline-block"></span>${s} <span style="color:${colorOf(s)};font-weight:700">${n}</span></div>`).join('');
+  const donut=total?`<svg viewBox="0 0 160 160" style="width:140px;height:140px">${slices}<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" fill="#eef4ff" font-size="22" font-weight="800">${total}</text></svg>`:'';
+  const wrap=document.getElementById('pipeChart');
+  if(wrap){wrap.style.display='flex';wrap.style.flexDirection='column';wrap.style.alignItems='center';wrap.style.gap='10px';wrap.innerHTML=donut+`<div style="display:flex;flex-direction:column;gap:4px;width:100%">${legend}</div>`;}
 } // end renderPipeline
 
 function renderVisits() {
@@ -1099,7 +1104,6 @@ function show(id,msg){const el=document.getElementById(id);if(el){el.classList.r
 function hide(id){const el=document.getElementById(id);if(el){el.classList.add('hidden');el.style.display='none';}}
 
 
-function renderSalesPipeline()
 function renderSalesPipeline() {
   const q   = ((document.getElementById('sp-search')||{}).value||'').toLowerCase().trim();
   const gq  = ((document.getElementById('global-search')||{}).value||'').toLowerCase().trim();
@@ -1332,7 +1336,34 @@ function renderSalesPipeline() {
 //  END SALES PIPELINE TRACKER
 // ═══════════════════════════════════════════════
 
-document.addEventListener("DOMContentLoaded", loadAll);
+
+// Run immediately - no waiting
+(function() {
+  var dbg = document.createElement('div');
+  dbg.id = 'dbg';
+  dbg.style = 'position:fixed;bottom:10px;left:10px;right:10px;background:#1a0000;color:#ff8888;font-size:11px;font-family:monospace;padding:8px;border-radius:6px;z-index:9999;max-height:200px;overflow:auto;display:none';
+  document.body.appendChild(dbg);
+  function dbgLog(msg) { dbg.style.display='block'; dbg.innerHTML += msg + '<br>'; }
+
+  window.onerror = function(msg,src,line,col,err) {
+    dbgLog('ERROR: ' + msg + ' (line ' + line + ')');
+  };
+
+  try {
+    dbgLog('Starting loadAll...');
+    loadAll();
+    dbgLog('loadAll completed');
+  } catch(e) {
+    dbgLog('CRASH: ' + e.message + ' at ' + e.stack);
+    var ls = document.getElementById('loading-screen');
+    if(ls) ls.style.display='none';
+    var es = document.getElementById('error-screen');
+    var em = document.getElementById('error-msg');
+    if(em) em.textContent = e.message;
+    if(es) { es.style.display='flex'; }
+  }
+})();
+
 </script>
 </body>
 </html>
