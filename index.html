@@ -337,7 +337,7 @@
         <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.54"/></svg>
         Refresh
       </button>
-      <a class="hbtn" href="https://docs.google.com/spreadsheets/d/15_QW2QSF2BqrsQC5SZFU8GjI_mOBorto/edit" target="_blank">
+      <a class="hbtn" href="https://docs.google.com/spreadsheets/d/1FokNNxHQguEYvOwYKEM5UZqdCaEyhZl7/edit?gid=957867449#gid=957867449" target="_blank">
         <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         Open Sheet
       </a>
@@ -487,8 +487,30 @@
 // ══════════════════════════════════════════════════════
 //  CONFIG
 // ══════════════════════════════════════════════════════
-const SHEET_ID = '15_QW2QSF2BqrsQC5SZFU8GjI_mOBorto';
+const SHEET_ID = '1FokNNxHQguEYvOwYKEM5UZqdCaEyhZl7';
 const TABS = { travel:'Travel', lead:'LEAD', pr:'PR', po:'PO' };
+// Fallback tab name variants to try if primary name returns empty
+const TAB_VARIANTS = {
+  travel: ['Travel','TRAVEL','travel','Site Visit','SITE VISIT','SiteVisit'],
+  lead:   ['LEAD','Lead','Leads','LEADS','Lead Status','LEAD STATUS','Lead Pipeline'],
+  pr:     ['PR','Purchase Request','PURCHASE REQUEST','Purchase Requests','PR TRACKER'],
+  po:     ['PO','Purchase Order','PURCHASE ORDER','Purchase Orders','PO TRACKER']
+};
+
+async function fetchTabWithFallback(key) {
+  const variants = TAB_VARIANTS[key] || [TABS[key]];
+  for (const name of variants) {
+    try {
+      const rows = await fetchTab(name);
+      if (rows && rows.length > 0) {
+        console.log(`Tab "${key}" found as: "${name}" (${rows.length} rows)`);
+        return rows;
+      }
+    } catch(e) { /* try next */ }
+  }
+  console.warn(`Tab "${key}" returned no data. Tried: ${variants.join(', ')}`);
+  return [];
+}
 // ══════════════════════════════════════════════════════
 
 let chartInstance = null;
@@ -529,7 +551,8 @@ async function loadAll() {
   hide('error-screen'); hide('dashboard');
   try {
     const [travels,leads,prs,pos] = await Promise.all([
-      fetchTab(TABS.travel), fetchTab(TABS.lead), fetchTab(TABS.pr), fetchTab(TABS.po)
+      fetchTabWithFallback('travel'), fetchTabWithFallback('lead'),
+      fetchTabWithFallback('pr'), fetchTabWithFallback('po')
     ]);
     renderDashboard({travels,leads,prs,pos});
   } catch(e) {
@@ -554,12 +577,29 @@ function matches(r,q){if(!q)return true;q=q.toLowerCase();return Object.values(r
 
 function renderDashboard({travels,leads,prs,pos}) {
   _data.aLeads  = leads.filter(r=>r['Lead No']);
+  // Normalize: some sheets use "Status" instead of "Lead Status"
+  _data.aLeads.forEach(r => {
+    if(!r['Lead Status'] && r['Status']) r['Lead Status'] = r['Status'];
+    if(!r['Lead Status'] && r['Lead stage']) r['Lead Status'] = r['Lead stage'];
+    if(!r['Lead Status'] && r['Stage']) r['Lead Status'] = r['Stage'];
+  });
   _data.aPRs    = prs.filter(r=>r['Internal PR No']);
   _data.aPOs    = pos.filter(r=>r['Customer Name']&&r['Production Stage']&&String(r['Customer Name']).length>2&&String(r['Production Stage']).length>0&&!String(r['Customer Name']).toLowerCase().includes('grand total')&&!String(r['Customer Name']).toLowerCase().includes('production stage'));
   _data.aVisits = travels.filter(r=>r['Lead No']);
 
   const anyEmpty=[_data.aLeads,_data.aPRs,_data.aPOs,_data.aVisits].some(a=>a.length===0);
-  document.getElementById('publish-notice').classList.toggle('show',anyEmpty);
+  const emptyNames = [];
+  if(_data.aLeads.length===0) emptyNames.push('LEAD tab');
+  if(_data.aPRs.length===0) emptyNames.push('PR tab');
+  if(_data.aPOs.length===0) emptyNames.push('PO tab');
+  if(_data.aVisits.length===0) emptyNames.push('TRAVEL tab');
+  const notice = document.getElementById('publish-notice');
+  if(anyEmpty && notice) {
+    notice.innerHTML = `ℹ️ <strong>${emptyNames.join(', ')}</strong> returned no data. Check that these tab names exist exactly in your sheet and are published to web as CSV. Open browser console (F12) to see which tab names were tried.`;
+    notice.classList.add('show');
+  } else if(notice) {
+    notice.classList.remove('show');
+  }
 
   set('kpi-leads',_data.aLeads.length);
   set('kpi-prs',_data.aPRs.length);
