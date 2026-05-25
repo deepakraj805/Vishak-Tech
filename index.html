@@ -140,7 +140,7 @@
   @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 8px var(--green),0 0 2px var(--green)} 50%{opacity:0.5;box-shadow:0 0 3px var(--green)} }
 
   /* KPI GRID */
-  .kpi-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px; margin-bottom: 1.4rem; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 14px; margin-bottom: 1.4rem; }
   .kpi {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -157,13 +157,15 @@
   .kpi.k2::before{background:linear-gradient(90deg,#3dba80,#60d49a)} .kpi.k2::after{background:#3dba80;transform:translate(30%,-30%)}
   .kpi.k3::before{background:linear-gradient(90deg,#41a8c8,#60c8e8)} .kpi.k3::after{background:#41a8c8;transform:translate(30%,-30%)}
   .kpi.k4::before{background:linear-gradient(90deg,#9b6fe0,#b890f8)} .kpi.k4::after{background:#9b6fe0;transform:translate(30%,-30%)}
+  .kpi.k5::before{background:linear-gradient(90deg,#e07040,#60d49a)} .kpi.k5::after{background:#3dba80;transform:translate(30%,-30%)}
   .kpi-icon { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; margin-bottom:12px; flex-shrink:0; }
-  .kpi.k1 .kpi-icon{background:rgba(224,112,64,0.15);} .kpi.k2 .kpi-icon{background:rgba(61,186,128,0.15);} .kpi.k3 .kpi-icon{background:rgba(74,144,217,0.15);} .kpi.k4 .kpi-icon{background:rgba(155,111,224,0.15);}
+  .kpi.k1 .kpi-icon{background:rgba(224,112,64,0.15);} .kpi.k2 .kpi-icon{background:rgba(61,186,128,0.15);} .kpi.k3 .kpi-icon{background:rgba(74,144,217,0.15);} .kpi.k4 .kpi-icon{background:rgba(155,111,224,0.15);} .kpi.k5 .kpi-icon{background:rgba(61,186,128,0.15);}
   .kpi-icon svg { width:16px; height:16px; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; fill:none; }
   .kpi.k1 .kpi-icon svg{stroke:#f09060} .kpi.k2 .kpi-icon svg{stroke:#60d49a} .kpi.k3 .kpi-icon svg{stroke:#70b0f0} .kpi.k4 .kpi-icon svg{stroke:#b890f8}
   .kpi-label { font-size:11px; color:var(--text3); font-weight:600; text-transform:uppercase; letter-spacing:0.7px; margin-bottom:4px; }
   .kpi-val { font-size:38px; font-weight:700; line-height:1; font-family:'DM Mono',monospace; letter-spacing:-1.5px; }
-  .kpi.k1 .kpi-val{color:#f5b090} .kpi.k2 .kpi-val{color:#80e8b8} .kpi.k3 .kpi-val{color:#90c8f8} .kpi.k4 .kpi-val{color:#c8a8f8}
+  .kpi.k1 .kpi-val{color:#f5b090} .kpi.k2 .kpi-val{color:#80e8b8} .kpi.k3 .kpi-val{color:#90c8f8} .kpi.k4 .kpi-val{color:#c8a8f8} .kpi.k5 .kpi-val{color:#80e8b8}
+  .kpi.k5 .kpi-icon svg{stroke:#60d49a}
   .kpi-sub { font-size:11px; color:var(--text3); margin-top:7px; font-weight:500; }
 
   /* FILTER BAR */
@@ -307,6 +309,14 @@
   .notice { background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:var(--radius); padding:0.75rem 1rem; font-size:12px; color:var(--amber); margin-bottom:1.4rem; display:none; align-items:center; gap:8px; }
   .notice.show { display:flex; }
 
+  /* SALES SUMMARY BAR */
+  .sales-summary { display:flex; gap:18px; background:var(--surface2); border:1px solid var(--border-strong); border-radius:10px; padding:0.7rem 1.1rem; margin-bottom:1rem; flex-wrap:wrap; }
+  .ss-item { display:flex; flex-direction:column; gap:2px; }
+  .ss-label { font-size:10.5px; color:var(--text3); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+  .ss-val { font-size:17px; font-weight:700; font-family:'DM Mono',monospace; color:var(--text); }
+  .ss-val.accent { color:var(--accent2); }
+
+  @media(max-width:900px){ .kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
   @media(max-width:700px){ .kpi-grid{grid-template-columns:1fr 1fr} .row2{grid-template-columns:1fr} }
   @media(max-width:420px){ .kpi-grid{grid-template-columns:1fr} }
 </style>
@@ -391,6 +401,12 @@
       <div class="kpi-label">Site Visits</div>
       <div class="kpi-val" id="kpi-visits">—</div>
       <div class="kpi-sub">Field visits logged</div>
+    </div>
+    <div class="kpi k5">
+      <div class="kpi-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <div class="kpi-label">Sales Records</div>
+      <div class="kpi-val" id="kpi-sales">—</div>
+      <div class="kpi-sub">Tracked sales entries</div>
     </div>
   </div>
 
@@ -498,6 +514,26 @@
     <span class="row-count" id="po-count"></span>
   </div>
 
+  <!-- SALES TRACKER -->
+  <div class="card section-gap" id="sales-card">
+    <div class="card-title">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Sales tracker
+    </div>
+    <div class="card-search">
+      <input class="card-search-input" type="text" id="sales-search" placeholder="Search customer, amount, status…" oninput="renderSales()">
+      <select class="card-search-select" id="sales-status-filter" onchange="renderSales()">
+        <option value="">All Status</option>
+      </select>
+    </div>
+    <div id="sales-summary-bar"></div>
+    <table class="data-table">
+      <thead><tr id="sales-thead"></tr></thead>
+      <tbody id="sales-tbody"></tbody>
+    </table>
+    <span class="row-count" id="sales-count"></span>
+  </div>
+
   <div class="footer" id="footer-ts">—</div>
 </div>
 
@@ -506,12 +542,12 @@
 //  CONFIG
 // ══════════════════════════════════════════════════════
 const SHEET_ID = '15_QW2QSF2BqrsQC5SZFU8GjI_mOBorto';
-const TABS = { travel:'Travel', lead:'LEAD', pr:'PR', po:'PO' };
+const TABS = { travel:'Travel', lead:'LEAD', pr:'PR', po:'PO', sales:'Sales' };
 // ══════════════════════════════════════════════════════
 
 let chartInstance = null;
-let _data = { aLeads:[], aPRs:[], aPOs:[], aVisits:[] };
-let _sort = { pr:{col:null,dir:1}, po:{col:null,dir:1} };
+let _data = { aLeads:[], aPRs:[], aPOs:[], aVisits:[], aSales:[] };
+let _sort = { pr:{col:null,dir:1}, po:{col:null,dir:1}, sales:{col:null,dir:1} };
 
 function csvUrl(tabName) {
   return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
@@ -546,10 +582,10 @@ async function loadAll() {
   show('loading-screen','Fetching latest data from Google Sheets…');
   hide('error-screen'); hide('dashboard');
   try {
-    const [travels,leads,prs,pos] = await Promise.all([
-      fetchTab(TABS.travel), fetchTab(TABS.lead), fetchTab(TABS.pr), fetchTab(TABS.po)
+    const [travels,leads,prs,pos,sales] = await Promise.all([
+      fetchTab(TABS.travel), fetchTab(TABS.lead), fetchTab(TABS.pr), fetchTab(TABS.po), fetchTab(TABS.sales)
     ]);
-    renderDashboard({travels,leads,prs,pos});
+    renderDashboard({travels,leads,prs,pos,sales});
   } catch(e) {
     console.error(e);
     hide('loading-screen');
@@ -570,11 +606,12 @@ function fmtDate(v){if(!v)return'—';const d=new Date(v);return isNaN(d)?String
 function trunc(s,n){const t=String(s||'');return t.length>n?t.slice(0,n)+'…':t;}
 function matches(r,q){if(!q)return true;q=q.toLowerCase();return Object.values(r).some(v=>v&&String(v).toLowerCase().includes(q));}
 
-function renderDashboard({travels,leads,prs,pos}) {
+function renderDashboard({travels,leads,prs,pos,sales}) {
   _data.aLeads  = leads.filter(r=>r['Lead No']);
   _data.aPRs    = prs.filter(r=>r['Internal PR No']);
   _data.aPOs    = pos.filter(r=>r['Customer Name']&&r['Production Stage']&&String(r['Customer Name']).length>2&&String(r['Production Stage']).length>0&&!String(r['Customer Name']).toLowerCase().includes('grand total')&&!String(r['Customer Name']).toLowerCase().includes('production stage'));
   _data.aVisits = travels.filter(r=>r['Lead No']);
+  _data.aSales  = (sales||[]).filter(r=>Object.values(r).some(v=>v));
 
   const anyEmpty=[_data.aLeads,_data.aPRs,_data.aPOs,_data.aVisits].some(a=>a.length===0);
   document.getElementById('publish-notice').classList.toggle('show',anyEmpty);
@@ -583,6 +620,7 @@ function renderDashboard({travels,leads,prs,pos}) {
   set('kpi-prs',_data.aPRs.length);
   set('kpi-pos',_data.aPOs.length);
   set('kpi-visits',_data.aVisits.length);
+  set('kpi-sales',_data.aSales.length);
 
   // Populate lead status dropdown + build stable per-status color map (assigned once, never shifts on filter)
   const statuses=[...new Set(_data.aLeads.map(r=>String(r['Lead Status']||'Unknown').trim()))].sort();
@@ -614,7 +652,7 @@ function renderDashboard({travels,leads,prs,pos}) {
   });
 
   renderPipeline();
-  renderVisits(); renderPRs(); renderPOs();
+  renderVisits(); renderPRs(); renderPOs(); renderSales();
 
   const now=new Date().toLocaleString();
   set('file-info',`Google Sheets · refreshed ${now}`);
@@ -746,7 +784,7 @@ function applyAllFilters() {
   const pof=document.getElementById('po-stage-filter');
   if(gpo&&pof&&gpo.value&&!pof.value) pof.value=gpo.value;
 
-  renderVisits(); renderPRs(); renderPOs(); renderPipeline();
+  renderVisits(); renderPRs(); renderPOs(); renderPipeline(); renderSales();
   const active=[
     document.getElementById('global-search').value,
     document.getElementById('filter-lead-status').value,
@@ -759,7 +797,7 @@ function applyAllFilters() {
 
 function clearAllFilters() {
   ['global-search','filter-lead-status','filter-pr-status','filter-po-stage',
-   'pr-search','pr-status-filter','po-search','po-stage-filter','visit-search'].forEach(id=>{
+   'pr-search','pr-status-filter','po-search','po-stage-filter','visit-search','sales-search','sales-status-filter'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
   applyAllFilters();
@@ -770,10 +808,105 @@ function sortTable(table,col,th) {
   if(s.col===col) s.dir*=-1; else{s.col=col;s.dir=1;}
   document.querySelectorAll('.data-table th.sorted').forEach(t=>t.classList.remove('sorted'));
   th.classList.add('sorted');
-  if(table==='pr') renderPRs(); else renderPOs();
+  if(table==='pr') renderPRs(); else if(table==='po') renderPOs(); else renderSales();
 }
 
-function set(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
+function renderSales() {
+  const q=(document.getElementById('sales-search')||{}).value||'';
+  const gq=(document.getElementById('global-search')||{}).value||'';
+  const sf=(document.getElementById('sales-status-filter')||{}).value||'';
+
+  let rows=_data.aSales.filter(r=>{
+    if(!matches(r,q))return false;
+    if(!matches(r,gq))return false;
+    if(sf){const s=String(r['Status']||r['Sales Status']||r['Stage']||'').trim().toLowerCase();if(s!==sf.toLowerCase())return false;}
+    return true;
+  });
+  const {col,dir}=_sort.sales;
+  if(col) rows=[...rows].sort((a,b)=>String(a[col]||'').localeCompare(String(b[col]||''))*dir);
+
+  // Compute totals for summary bar
+  const totalVal=rows.reduce((sum,r)=>{
+    const v=parseFloat(String(r['Amount']||r['Value']||r['Sale Value']||r['Sales Value']||r['Total']||'0').replace(/[^0-9.-]/g,''))||0;
+    return sum+v;
+  },0);
+
+  // Detect columns dynamically from first row
+  const sample=rows[0]||_data.aSales[0]||{};
+  const cols=Object.keys(sample).filter(k=>k&&k.trim()).slice(0,6);
+
+  const pillSales=s=>{
+    const v=String(s||'').toLowerCase().trim();
+    if(v.includes('won')||v.includes('closed'))return'pill-won';
+    if(v.includes('lost')||v.includes('cancel'))return'pill-notsent';
+    if(v.includes('progress')||v.includes('active')||v.includes('open'))return'pill-process';
+    if(v.includes('pending')||v.includes('follow'))return'pill-follow';
+    if(v.includes('new'))return'pill-new';
+    if(v.includes('proposal')||v.includes('sent'))return'pill-sent';
+    return'pill-default';
+  };
+
+  const fmtVal=v=>{
+    const n=parseFloat(String(v||'').replace(/[^0-9.-]/g,''));
+    if(isNaN(n)||n===0)return'—';
+    return n>=100000?'₹'+(n/100000).toFixed(2)+'L':'₹'+n.toLocaleString('en-IN');
+  };
+
+  // Status key detection
+  const statusKey=cols.find(k=>/status|stage/i.test(k))||'';
+  const amountKey=cols.find(k=>/amount|value|total|sale/i.test(k))||'';
+  const custKey=cols.find(k=>/customer|client|name|company/i.test(k))||'';
+  const dateKey=cols.find(k=>/date|time/i.test(k))||'';
+  const descKey=cols.find(k=>/desc|product|item|detail/i.test(k))||'';
+  const refKey=cols.find(k=>/no|id|ref|order|invoice/i.test(k))||'';
+
+  // Build distinct statuses for filter dropdown
+  const statuses=[...new Set(_data.aSales.map(r=>String(r[statusKey]||'').trim()).filter(Boolean))].sort();
+  const selEl=document.getElementById('sales-status-filter');
+  if(selEl&&selEl.dataset.built!=='1'){
+    selEl.innerHTML='<option value="">All Status</option>'+statuses.map(s=>`<option value="${s}">${s}</option>`).join('');
+    selEl.dataset.built='1';
+  }
+
+  // Summary bar
+  const summaryHtml=totalVal>0?`<div class="sales-summary">
+    <span class="ss-item"><span class="ss-label">Records</span><span class="ss-val">${rows.length}</span></span>
+    <span class="ss-item"><span class="ss-label">Total Value</span><span class="ss-val accent">${fmtVal(totalVal)}</span></span>
+  </div>`:'';
+
+  // Table header
+  const thCols=[
+    {k:refKey,l:'Ref / No'},
+    {k:custKey,l:'Customer'},
+    {k:descKey,l:'Description'},
+    {k:dateKey,l:'Date'},
+    {k:amountKey,l:'Value'},
+    {k:statusKey,l:'Status'},
+  ].filter(c=>c.k);
+
+  const thead=thCols.map(c=>`<th onclick="sortTable('sales','${c.k}',this)">${c.l} <span class="sort-icon">↕</span></th>`).join('');
+
+  const tbody=rows.map(r=>{
+    const cells=thCols.map((c,i)=>{
+      const v=r[c.k]||'—';
+      if(c.k===statusKey)return`<td><span class="pill ${pillSales(v)}">${v}</span></td>`;
+      if(c.k===amountKey)return`<td class="mono">${fmtVal(v)}</td>`;
+      if(c.k===dateKey)return`<td class="mono">${fmtDate(v)}</td>`;
+      if(c.k===refKey)return`<td class="mono">${trunc(v,18)}</td>`;
+      if(i===1)return`<td class="name">${trunc(v,30)}</td>`;
+      return`<td>${trunc(v,35)}</td>`;
+    }).join('');
+    return`<tr>${cells}</tr>`;
+  }).join('')||'<tr><td colspan="6" class="empty">No sales data matches</td></tr>';
+
+  set('sales-summary-bar',summaryHtml);
+  set('sales-thead',thead);
+  set('sales-tbody',tbody);
+  const el=document.getElementById('sales-count');
+  if(el) el.textContent=rows.length!==_data.aSales.length?`Showing ${rows.length} of ${_data.aSales.length} records`:'';
+}
+
+
 function show(id,msg){const el=document.getElementById(id);if(el){el.classList.remove('hidden');el.style.display='';if(msg){const m=document.getElementById('load-msg');if(m)m.textContent=msg;}}}
 function hide(id){const el=document.getElementById(id);if(el){el.classList.add('hidden');el.style.display='none';}}
 
