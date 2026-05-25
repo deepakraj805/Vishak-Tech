@@ -911,7 +911,7 @@ function sortTable(table,col,th) {
   if(s.col===col) s.dir*=-1; else{s.col=col;s.dir=1;}
   document.querySelectorAll('.data-table th.sorted').forEach(t=>t.classList.remove('sorted'));
   th.classList.add('sorted');
-  if(table==='pr') renderPRs(); else if(table==='po') renderPOs(); else 
+  if(table==='pr') renderPRs(); else renderPOs();
 }
 
 
