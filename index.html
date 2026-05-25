@@ -159,7 +159,7 @@
   .kpi.k4::before{background:linear-gradient(90deg,#9b6fe0,#b890f8)} .kpi.k4::after{background:#9b6fe0;transform:translate(30%,-30%)}
   .kpi.k5::before{background:linear-gradient(90deg,#e07040,#60d49a)} .kpi.k5::after{background:#3dba80;transform:translate(30%,-30%)}
   .kpi-icon { width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; margin-bottom:12px; flex-shrink:0; }
-  .kpi.k1 .kpi-icon{background:rgba(224,112,64,0.15);} .kpi.k2 .kpi-icon{background:rgba(61,186,128,0.15);} .kpi.k3 .kpi-icon{background:rgba(74,144,217,0.15);} .kpi.k4 .kpi-icon{background:rgba(155,111,224,0.15);} .kpi.k5 .kpi-icon{background:rgba(61,186,128,0.15);}
+  .kpi.k1 .kpi-icon{background:rgba(224,112,64,0.15);} .kpi.k2 .kpi-icon{background:rgba(61,186,128,0.15);} .kpi.k3 .kpi-icon{background:rgba(74,144,217,0.15);} .kpi.k4 .kpi-icon{background:rgba(155,111,224,0.15);} .kpi.k5 .kpi-icon{background:rgba(61,186,128,0.12);}
   .kpi-icon svg { width:16px; height:16px; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; fill:none; }
   .kpi.k1 .kpi-icon svg{stroke:#f09060} .kpi.k2 .kpi-icon svg{stroke:#60d49a} .kpi.k3 .kpi-icon svg{stroke:#70b0f0} .kpi.k4 .kpi-icon svg{stroke:#b890f8}
   .kpi-label { font-size:11px; color:var(--text3); font-weight:600; text-transform:uppercase; letter-spacing:0.7px; margin-bottom:4px; }
@@ -582,9 +582,11 @@ async function loadAll() {
   show('loading-screen','Fetching latest data from Google Sheets…');
   hide('error-screen'); hide('dashboard');
   try {
-    const [travels,leads,prs,pos,sales] = await Promise.all([
-      fetchTab(TABS.travel), fetchTab(TABS.lead), fetchTab(TABS.pr), fetchTab(TABS.po), fetchTab(TABS.sales)
+    const [travels,leads,prs,pos] = await Promise.all([
+      fetchTab(TABS.travel), fetchTab(TABS.lead), fetchTab(TABS.pr), fetchTab(TABS.po)
     ]);
+    let sales = [];
+    try { sales = await fetchTab(TABS.sales); } catch(e) { console.warn('Sales tab not found:', e.message); }
     renderDashboard({travels,leads,prs,pos,sales});
   } catch(e) {
     console.error(e);
@@ -784,7 +786,7 @@ function applyAllFilters() {
   const pof=document.getElementById('po-stage-filter');
   if(gpo&&pof&&gpo.value&&!pof.value) pof.value=gpo.value;
 
-  renderVisits(); renderPRs(); renderPOs(); renderPipeline(); renderSales();
+  renderVisits(); renderPRs(); renderPOs(); renderSales(); renderPipeline();
   const active=[
     document.getElementById('global-search').value,
     document.getElementById('filter-lead-status').value,
@@ -819,21 +821,39 @@ function renderSales() {
   let rows=_data.aSales.filter(r=>{
     if(!matches(r,q))return false;
     if(!matches(r,gq))return false;
-    if(sf){const s=String(r['Status']||r['Sales Status']||r['Stage']||'').trim().toLowerCase();if(s!==sf.toLowerCase())return false;}
+    if(sf){const s=String(r['Status']||r['Sales Status']||r['Stage']||'').trim();if(s!==sf)return false;}
     return true;
   });
   const {col,dir}=_sort.sales;
   if(col) rows=[...rows].sort((a,b)=>String(a[col]||'').localeCompare(String(b[col]||''))*dir);
 
-  // Compute totals for summary bar
+  const sample=rows[0]||_data.aSales[0]||{};
+  const allCols=Object.keys(sample).filter(k=>k&&k.trim());
+
+  const statusKey=allCols.find(k=>/status|stage/i.test(k))||'';
+  const amountKey=allCols.find(k=>/amount|value|total|sale/i.test(k))||'';
+  const custKey=allCols.find(k=>/customer|client|name|company/i.test(k))||'';
+  const dateKey=allCols.find(k=>/date|time/i.test(k))||'';
+  const descKey=allCols.find(k=>/desc|product|item|detail/i.test(k))||'';
+  const refKey=allCols.find(k=>/no|id|ref|order|invoice/i.test(k))||'';
+
+  const selEl=document.getElementById('sales-status-filter');
+  if(selEl&&selEl.dataset.built!=='1'&&_data.aSales.length){
+    const statuses=[...new Set(_data.aSales.map(r=>String(r[statusKey]||'').trim()).filter(Boolean))].sort();
+    selEl.innerHTML='<option value="">All Status</option>'+statuses.map(s=>`<option value="${s}">${s}</option>`).join('');
+    selEl.dataset.built='1';
+  }
+
   const totalVal=rows.reduce((sum,r)=>{
-    const v=parseFloat(String(r['Amount']||r['Value']||r['Sale Value']||r['Sales Value']||r['Total']||'0').replace(/[^0-9.-]/g,''))||0;
+    const v=parseFloat(String(r[amountKey]||'0').replace(/[^0-9.-]/g,''))||0;
     return sum+v;
   },0);
 
-  // Detect columns dynamically from first row
-  const sample=rows[0]||_data.aSales[0]||{};
-  const cols=Object.keys(sample).filter(k=>k&&k.trim()).slice(0,6);
+  const fmtVal=v=>{
+    const n=parseFloat(String(v||'').replace(/[^0-9.-]/g,''));
+    if(isNaN(n)||n===0)return'—';
+    return n>=100000?'\u20B9'+(n/100000).toFixed(2)+'L':'\u20B9'+n.toLocaleString('en-IN');
+  };
 
   const pillSales=s=>{
     const v=String(s||'').toLowerCase().trim();
@@ -846,35 +866,11 @@ function renderSales() {
     return'pill-default';
   };
 
-  const fmtVal=v=>{
-    const n=parseFloat(String(v||'').replace(/[^0-9.-]/g,''));
-    if(isNaN(n)||n===0)return'—';
-    return n>=100000?'₹'+(n/100000).toFixed(2)+'L':'₹'+n.toLocaleString('en-IN');
-  };
-
-  // Status key detection
-  const statusKey=cols.find(k=>/status|stage/i.test(k))||'';
-  const amountKey=cols.find(k=>/amount|value|total|sale/i.test(k))||'';
-  const custKey=cols.find(k=>/customer|client|name|company/i.test(k))||'';
-  const dateKey=cols.find(k=>/date|time/i.test(k))||'';
-  const descKey=cols.find(k=>/desc|product|item|detail/i.test(k))||'';
-  const refKey=cols.find(k=>/no|id|ref|order|invoice/i.test(k))||'';
-
-  // Build distinct statuses for filter dropdown
-  const statuses=[...new Set(_data.aSales.map(r=>String(r[statusKey]||'').trim()).filter(Boolean))].sort();
-  const selEl=document.getElementById('sales-status-filter');
-  if(selEl&&selEl.dataset.built!=='1'){
-    selEl.innerHTML='<option value="">All Status</option>'+statuses.map(s=>`<option value="${s}">${s}</option>`).join('');
-    selEl.dataset.built='1';
-  }
-
-  // Summary bar
-  const summaryHtml=totalVal>0?`<div class="sales-summary">
+  const summaryHtml=_data.aSales.length?`<div class="sales-summary">
     <span class="ss-item"><span class="ss-label">Records</span><span class="ss-val">${rows.length}</span></span>
-    <span class="ss-item"><span class="ss-label">Total Value</span><span class="ss-val accent">${fmtVal(totalVal)}</span></span>
+    ${totalVal>0?`<span class="ss-item"><span class="ss-label">Total Value</span><span class="ss-val accent">${fmtVal(totalVal)}</span></span>`:''}
   </div>`:'';
 
-  // Table header
   const thCols=[
     {k:refKey,l:'Ref / No'},
     {k:custKey,l:'Customer'},
@@ -884,20 +880,23 @@ function renderSales() {
     {k:statusKey,l:'Status'},
   ].filter(c=>c.k);
 
-  const thead=thCols.map(c=>`<th onclick="sortTable('sales','${c.k}',this)">${c.l} <span class="sort-icon">↕</span></th>`).join('');
+  // Fallback: if no columns detected, show first 5 columns
+  const displayCols=thCols.length?thCols:allCols.slice(0,5).map(k=>({k,l:k}));
 
-  const tbody=rows.map(r=>{
-    const cells=thCols.map((c,i)=>{
+  const thead=displayCols.map(c=>`<th onclick="sortTable('sales','${c.k}',this)">${c.l} <span class="sort-icon">↕</span></th>`).join('');
+
+  const tbody=rows.length?rows.map(r=>{
+    const cells=displayCols.map((c,i)=>{
       const v=r[c.k]||'—';
-      if(c.k===statusKey)return`<td><span class="pill ${pillSales(v)}">${v}</span></td>`;
-      if(c.k===amountKey)return`<td class="mono">${fmtVal(v)}</td>`;
-      if(c.k===dateKey)return`<td class="mono">${fmtDate(v)}</td>`;
-      if(c.k===refKey)return`<td class="mono">${trunc(v,18)}</td>`;
-      if(i===1)return`<td class="name">${trunc(v,30)}</td>`;
-      return`<td>${trunc(v,35)}</td>`;
+      if(c.k===statusKey&&statusKey)return`<td><span class="pill ${pillSales(v)}">${v}</span></td>`;
+      if(c.k===amountKey&&amountKey)return`<td class="mono">${fmtVal(v)}</td>`;
+      if(c.k===dateKey&&dateKey)return`<td class="mono">${fmtDate(v)}</td>`;
+      if(c.k===refKey&&refKey)return`<td class="mono">${trunc(String(v),18)}</td>`;
+      if(i===1)return`<td class="name">${trunc(String(v),30)}</td>`;
+      return`<td>${trunc(String(v),35)}</td>`;
     }).join('');
     return`<tr>${cells}</tr>`;
-  }).join('')||'<tr><td colspan="6" class="empty">No sales data matches</td></tr>';
+  }).join(''):'<tr><td colspan="6" class="empty">'+(_data.aSales.length?'No records match filters':'No Sales tab found — add a "Sales" sheet tab and publish it')+'</td></tr>';
 
   set('sales-summary-bar',summaryHtml);
   set('sales-thead',thead);
@@ -906,7 +905,7 @@ function renderSales() {
   if(el) el.textContent=rows.length!==_data.aSales.length?`Showing ${rows.length} of ${_data.aSales.length} records`:'';
 }
 
-
+function set(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
 function show(id,msg){const el=document.getElementById(id);if(el){el.classList.remove('hidden');el.style.display='';if(msg){const m=document.getElementById('load-msg');if(m)m.textContent=msg;}}}
 function hide(id){const el=document.getElementById(id);if(el){el.classList.add('hidden');el.style.display='none';}}
 
